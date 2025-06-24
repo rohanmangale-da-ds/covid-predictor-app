@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>COVID Predictor</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #e0f2fe;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      margin: 0;
+      padding: 20px;
+    }
+    .container {
+      background: #fff;
+      border-radius: 20px;
+      padding: 30px;
+      max-width: 500px;
+      width: 100%;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+      text-align: center;
+    }
+    .hidden { display: none; }
+    .result-positive {
+      background-color: #fee2e2;
+      color: #dc2626;
+      border: 1px solid #ef4444;
+      padding: 10px;
+      border-radius: 10px;
+      margin-top: 20px;
+    }
+    .result-negative {
+      background-color: #dcfce7;
+      color: #16a34a;
+      border: 1px solid #22c55e;
+      padding: 10px;
+      border-radius: 10px;
+      margin-top: 20px;
+    }
+    .advice-box {
+      margin-top: 20px;
+      padding: 15px;
+      border-radius: 10px;
+      font-size: 0.95rem;
+    }
+    .advice-positive {
+      background-color: #fef2f2;
+      color: #b91c1c;
+      border: 1px solid #fca5a5;
+    }
+    .advice-negative {
+      background-color: #ecfdf5;
+      color: #065f46;
+      border: 1px solid #a7f3d0;
+    }
+    #previewImage {
+      max-width: 250px;
+      height: auto;
+      margin-top: 12px;
+      border-radius: 12px;
+      border: 1px solid #ccc;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2 class="text-xl font-bold text-blue-600 mb-4">🛑 Stay Home. Stay Safe. 🛡️</h2>
+
+    <!-- Replacing the broken image with a valid banner -->
+    <img src="https://cdn.pixabay.com/photo/2020/03/24/13/52/coronavirus-4964813_1280.jpg" alt="COVID Awareness" class="rounded-lg shadow mb-6 w-full h-auto"/>
+
+    <h1 class="text-2xl font-bold mb-4">COVID Predictor</h1>
+
+    <input type="file" id="imageUpload" accept="image/*" class="mb-4 w-full border p-2 rounded"/>
+
+    <img id="previewImage" class="hidden" alt="Image Preview"/>
+
+    <button id="predictButton" disabled class="w-full mt-4 bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded">
+      Predict COVID
+    </button>
+
+    <div id="loading" class="hidden text-blue-600 mt-4 font-medium">Processing...</div>
+    <div id="result" class="mt-4 font-bold"></div>
+    <div id="adviceSection" class="advice-box hidden"></div>
+  </div>
+
+  <script>
+    const imageUpload = document.getElementById('imageUpload');
+    const previewImage = document.getElementById('previewImage');
+    const predictButton = document.getElementById('predictButton');
+    const loadingDiv = document.getElementById('loading');
+    const resultDiv = document.getElementById('result');
+    const adviceDiv = document.getElementById('adviceSection');
+
+    let selectedFile = null;
+
+    imageUpload.addEventListener('change', (e) => {
+      selectedFile = e.target.files[0];
+      if (selectedFile) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          previewImage.src = e.target.result;
+          previewImage.classList.remove('hidden');
+        };
+        reader.readAsDataURL(selectedFile);
+        predictButton.disabled = false;
+        resultDiv.innerHTML = '';
+        adviceDiv.classList.add('hidden');
+        loadingDiv.classList.add('hidden');
+      }
+    });
+
+    predictButton.addEventListener('click', async () => {
+      if (!selectedFile) return;
+
+      resultDiv.innerHTML = '';
+      adviceDiv.classList.add('hidden');
+      loadingDiv.classList.remove('hidden');
+      predictButton.disabled = true;
+
+      const formData = new FormData();
+      formData.append('file', selectedFile);
+
+      try {
+        const response = await fetch('http://127.0.0.1:5000/predict', {
+          method: 'POST',
+          body: formData,
+        });
+        const data = await response.json();
+        loadingDiv.classList.add('hidden');
+        resultDiv.className = '';
+        adviceDiv.className = 'advice-box';
+
+        if (data.prediction.includes("Positive")) {
+          resultDiv.textContent = "Result: COVID Positive";
+          resultDiv.classList.add('result-positive');
+          adviceDiv.classList.add('advice-positive');
+          adviceDiv.classList.remove('hidden');
+          adviceDiv.innerHTML = `
+            <strong>What to do next:</strong>
+            <ul class="list-disc pl-5 mt-2 text-sm">
+              <li>Isolate yourself immediately</li>
+              <li>Consult a doctor for a confirmatory test</li>
+              <li>Monitor your oxygen and temperature</li>
+              <li>Follow prescribed medication and rest</li>
+            </ul>
+          `;
+        } else {
+          resultDiv.textContent = "Result: COVID Negative";
+          resultDiv.classList.add('result-negative');
+          adviceDiv.classList.add('advice-negative');
+          adviceDiv.classList.remove('hidden');
+          adviceDiv.innerHTML = `
+            <strong>Stay Safe:</strong>
+            <ul class="list-disc pl-5 mt-2 text-sm">
+              <li>Continue wearing a mask and washing hands</li>
+              <li>Monitor symptoms if any appear</li>
+              <li>Maintain social distancing in public places</li>
+            </ul>
+          `;
+        }
+      } catch (err) {
+        loadingDiv.classList.add('hidden');
+        resultDiv.textContent = "Prediction failed. Check backend connection.";
+        resultDiv.className = 'text-red-600 font-semibold mt-4';
+      } finally {
+        predictButton.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>
